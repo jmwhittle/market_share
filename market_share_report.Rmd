@@ -1,19 +1,1518 @@
 ---
-title: "Market Share"
+title: "SLCC Market Share Analysis"
 author: "Jason Whittle"
-date: "2/5/2018"
-output: pdf_document
+date: "3/30/2018"
+header-includes:
+    - \usepackage{fancyhdr}
+    - \pagestyle{fancy}
+    - \rhead{\includegraphics[width=2cm,height=2cm]{logo.png}}
+    - \chead{Jason Whittle}
+    - \lhead{SLCC market share study 2018}
+output:
+  pdf_document:
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-library(tidyverse)
+```{r, echo=FALSE, include=FALSE}
+library(tidyverse); theme_set(theme_minimal())
+library(readxl)
 ```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+data <- read_xlsx("ushe_zips.xlsx")
+data <-data[ , !names(data) %in% c("s_extract")]
+names(data) <- c("inst", "year", "term",  "zip_code", "count")
+
+data$count <- as.numeric(data$count)
+```
+
+
+```{r, include=FALSE, message=FALSE}
+data %>% 
+  group_by(inst, year) %>%
+  summarise(total_count = sum(count)) %>%
+  ggplot() + 
+  geom_line(aes(x = as.numeric(year), y = total_count)) + 
+  facet_wrap(~inst) + 
+  ylab("total count") + 
+  xlab("year") + 
+  ggtitle("Annual enrollment by Institution")
+
+data %>% group_by(inst, year, term) %>%
+  summarise(total = sum(count))
+# term 1 refers to summer, 2 refers to fall and 3 spring(next year?)
+```
+
+```{r, include=FALSE,  message=FALSE}
+county_data <- read_csv("county.csv") %>%
+  gather("county", "pop", 2:5)
+
+colnames(county_data) <- c("year", "county", "pop")
+```
+
 # Overview
+
+This analysis is meant to give perspective on where Salt Lake Community College (SLCC) fits into the Wasatch Front's higher education market. This analysis will use Utah System of Higher Education (USHE) and census population estimates covering the time span from 2002 to 2017 to provide context and insight to the raw numbers that circulate throughout the USHE system.
 
 ## Results Summnary
 
+\begin{itemize}
+\item SLCC share of Salt Lake County college age population has remained relatively constant throughout the years covered in this analysis 2002-2017.
+\item SLCC directly competes with the University of Utah and thus consistently splits Salt Lake County higher ed market approximately evenly throughout the time frame analyzed. 
+\item Growth in the Wasatch Front is concentrated in Utah County for the time period of 2002-2017 (33{\%} compared to Salt Lake County's 9{\%}). 
+\item WSU and UVU have little competition and thus capture all the benefits of their respective county's growth.
+\item Expansion in the Southern part of the Salt Lake Valley might be the only way to escape the demographic dynamics of Salt Lake County.
+\item However, the boom in Utah county has already happened. At this time it is unclear if it will continue. There is the potential to be chasing the market. 
+\end{itemize}
+
+# Data
+
+The student data for this analysis comes from USHE and includes all USHE enrollments between Summer 2002 to Fall 2017 by institution. The county-level population data comes from the economic modeling firm EMSI, in the form of cleaned and ordered Census estimates. With the exception of the first plot, all plots are focused on only four counties (Salt Lake, Utah, Weber and Davis counties) and four USHE institutions (SLCC, University of Utah, Weber State University and Utah Valley University). 
+
+
+\newpage
+
+# Results
+
+### SLCC compared to all other USHE
+As can be seen in Figure 1, USHE has been growing for the last 15 years while SLCC's enrollment has remained largely flat in comparison. This plot is deceiving and doesn't place the raw numbers in the proper context of larger demographic and competitive realities along the Wasatch Front. As will be seen in subsequent figures in this analysis, much of the increase in the USHE system was driven by population growth in counties like Utah county, which saw 33% growth for the period 2002-2017 in the prime college age demographic (ages 15-34). Salt Lake County's has seen little growth in this age demographic by comparison: only 9% for the period 2002-2017.  
+
+```{r, echo=FALSE,  message=FALSE}
+library(scales)
+data %>% 
+  group_by(year) %>%
+  summarise(ushe_sum = sum(count[ inst != "SLCC"]),
+            SLCC_sum = sum(count[inst == "SLCC"])) %>%
+  gather("inst", "n", 2:3) %>%
+  ggplot() + 
+  geom_line(aes(x = year, y = n, col = inst)) + 
+  scale_color_manual(values = c("#00abe1", "#ffcd00"), 
+                     name = "", 
+                     labels = c("SLCC", "other USHE")) + 
+  labs(title = "SLCC compared to all other USHE", 
+       x = "Year", 
+       y = "Annual Headcount", 
+       caption = "Figure 1: Raw headcounts for SLCC and all other USHE. Source: USHE") +
+  scale_y_continuous(labels = comma, limits = c(0, 350000)) 
+
+```
+
+\newpage
+
+### Wasatch Front USHE
+
+Figure 2 uses the same data as figure 1 but breaks it down by Wasatch Front institutions only; SLCC, University of Utah (UU), Utah Valley University (UVU) and Weber State University (WSU). Figure 2 provides the percent of Fall USHE total enrollments by institution. SLCC in 2002 accounted for approximately 25\% of USHE enrollment and by 2017 it only accounted for 18.8\%. Similarly, SLCC's main competitor for enrollments, UU in 2004 accounted for approximately 24.2\% of USHE enrollments and this number had fallen to 18.1\% by 2017.\footnote{There appears to be a data quality issue with the 2002 and 2003 USHE enrollment data for UU.} 
+
+As figure 2 shows there has been strong growth since 2007 in UVU's share of USHE enrollments, stagnation in WSU share and decline for both UU and SLCC of the past 15 years. The raw proportion can be found in a table format at the end of the paper. 
+
+```{r, echo=FALSE, message=FALSE}
+data %>% 
+  filter(term==2) %>%
+  group_by(year) %>%
+  summarise(slcc_share = (sum(count[inst == "SLCC"]/sum(count))*100),
+            uvu_share =  (sum(count[inst == "UVU"]/sum(count))*100),
+            UU_share = (sum(count[inst == "UU"]/sum(count))*100),
+            wsu_share = (sum(count[inst == "WSU"]/sum(count))*100)
+            ) %>%
+  gather("inst", "share", 2:5) %>%
+  ggplot() + 
+  geom_line(aes(x = year, y = round(share, 2), col = inst)) + 
+  geom_point(aes(x = year, y = round(share, 2), col = inst, shape = inst)) + 
+  ylim(0,30) + 
+  labs(x = "Year", 
+       y = "Percent", 
+       title = "Shares of USHE", 
+       caption = "Figure 2: Percent shares of Fall USHE totals for Wasatch Front institutions. Source: USHE") + 
+  scale_color_manual(name = "", labels = c("SLCC", "UU", "UVU", "WSU"), values = c("#00abe1", "#cc0000", "#275038", "#492365")) + 
+  scale_shape_manual(name = "", labels = c("SLCC", "UU", "UVU", "WSU"), values = c(18, 15, 19, 17))
+  
+```
+
+\newpage
+
+### Wasatch Front raw  population
+
+Figure 3 explores the underlying county population trends for the main counties along the Wasatch Front; Salt Lake, Utah, Davis and Weber. Figure 3 shows raw census estimates for people ages 15-34 by county. From this plot it would appear that all counties seem to be growing, but this growth masks some underlying changes that are occurring along the Wasatch Front.  
+
+```{r echo = FALSE,  message=FALSE}
+county_data %>% ggplot() + 
+  geom_line(aes(x = year, y = pop, col = county)) + 
+  geom_point(aes(x = year, y = pop, col = county, shape = county)) + 
+  labs(x = "Year", y = "Population", title = "Wasatch Front population growth by county (ages 15-34)", caption = "Figure 3: Raw population ages 15-34 by county for the Wasatch Front. Source: EMSI") + 
+  scale_color_manual(name = "", values = c( "#ffcd00", "#00abe1", "#003865", "#833921"), labels = c("Davis", "SLC", "Utah", "Weber")) + 
+  scale_shape_manual(name = "", values = c(15, 17, 16, 25), labels = c("Davis", "SLC", "Utah", "Weber")) +
+  scale_y_continuous(labels = comma, limits = c(0, 350000)) 
+
+```
+
+\newpage
+
+### Wasatch Front population share by county
+
+When you look at county populations as a share of the total Wasatch Front population you see the rise of Utah county and a slow decline of Salt Lake County (figure 4). While Salt Lake County is still growing it is nothing like the growth in Utah County or even Davis County for that matter. Table 2 at the end of this paper provides the percentages by county and year that were used to produce Figure 4.
+
+```{r, echo = FALSE, message=FALSE}
+county_data %>% group_by(year) %>%
+  summarise(slc = round((sum(pop[county == "slc"]/sum(pop))*100), 1),
+            utah = round((sum(pop[county == "utah"]/sum(pop))*100), 1),
+            davis = round((sum(pop[county == "davis"]/sum(pop))*100), 1),
+            weber = round((sum(pop[county == "weber"]/sum(pop))*100), 1)
+            ) %>%
+  gather("county", "share", 2:5) %>%
+  ggplot() + 
+  geom_line(aes(x = year, y = share, col = county)) + 
+  geom_point(aes(x = year, y = share, col = county, shape = county)) + 
+  ylim(8, 55) + 
+  labs(x = "Year", 
+       y = "% Share of Wasatch Front",
+       title = "Wasatch Front Growth in perspective (ages 15-34)", 
+       caption = "Figure 4: Proportion of Wasatch Front population (15-34) by county. Source: EMSI") + 
+  scale_color_manual(name = "", values = c( "#ffcd00", "#00abe1", "#003865", "#833921"), labels = c("Davis", "SLC", "Utah", "Weber")) + 
+  scale_shape_manual(name = "", values = c(15, 17, 16, 25), labels = c("Davis", "SLC", "Utah", "Weber"))
+```
+
+\newpage
+
+### Fall semester enrollment share
+
+Figure 5 is the most illuminating plot in this paper. Figure 5 looks at Fall semester institution level enrollment divided by 'home' county population ages 15-34 for that institution. Home county refers to Salt Lake County for SLCC and UU, Utah County for UVU and Davis and Weber for WSU. In essence, what percent of the local college age students are enrolling at the Wasatch Front USHE institutions? Here we see WSU and UVU are isolated enough that they can successfully capture around 15\% of their home county's college age population. SLCC and UU on the other hand are in direct competition with each other (and private institutions such as Westminster College) and therefore seemingly split Salt Lake County's enrollments (both around 9\%). This is by no means a perfect measure but it does put Wasatch Front USHE institutions in the context of their primary counties' population growth. 
+
+Two takeaways from figure 5 are first, UVU's enrollment growth does not appear to be anything more than being situated in a county that is experiencing fast growth; and second, SLCC and UU are dealing with more direct competition than other USHE institutions. There doesn't seem to be anything particularly special about why SLCC's enrollment hasn't grown as fast as in the past or as fast as other contemporary institutions. 
+
+```{r, echo=FALSE, message=FALSE}
+inst_tots <- data %>% group_by(year) %>% filter(term == 2) %>%
+  summarise(slcc = sum(count[inst == "SLCC"]),
+            uu = sum(count[inst == "UU"]),
+            uvu = sum(count[inst == "UVU"]),
+            wsu = sum(count[inst == "WSU"])
+            )
+
+county_tots <- county_data %>% spread("county", "pop")
+
+inst_share_tbl <- inst_tots %>% left_join(county_tots, by = "year")
+inst_share_tbl$north <- inst_share_tbl$davis + inst_share_tbl$weber
+
+inst_share_tbl %>% group_by(year) %>%
+  summarise(slcc_share = round(slcc/slc, 3)*100,
+            uu_share = round(uu/slc, 3)*100,
+            uvu_share = round(uvu/utah, 3)*100,
+            wsu_share = round(wsu/north, 3)*100
+            ) %>%
+  gather("county", "share", 2:5) %>%
+  ggplot() + 
+  geom_line(aes(x = year, y = share, col = county )) + 
+  geom_point(aes(x = year, y = share, col = county, shape = county)) + 
+  scale_color_manual(name = "", labels = c("SLCC", "UU", "UVU", "WSU"), values = c("#00abe1", "#cc0000", "#275038", "#492365")) + 
+  scale_shape_manual(name = "", labels = c("SLCC", "UU", "UVU", "WSU"), values = c(18, 15, 19, 17)) + 
+  labs(x = "Year", 
+       y = "% Share of 'home' county", 
+       title = "Fall enrollment compared to 'home' county pop (15-34).", 
+       caption = "Figure 5: Proportion of 'home' county population (15-34) enrolled in Fall semester.") + 
+  ylim(0, 23)
+  
+```
+
+## Conculsion
+
+There seem to be a mixed bag of results in this analysis. SLCC is in part a victim of Salt Lake County's declining share of the Wasatch Front's population. SLCC is also not growing in a time when the University of Utah doesn't seem to be taking market share and Salt Lake County is growing, albeit slowly compared to Utah, Davis and Weber counties. 
+
+SLCC has neither gained nor lost market share over the last 15 year in Salt Lake County. This should probably be interpreted as whatever steps SLCC has taken to capture market share have failed to produce anything other than a stalemate with UU (especially earlier in this time period). As shown in the maps section at the end of this analysis SLCC has done well in the south end of the County but has not been performing well in most other areas of Salt Lake County. 
+
+One possible and often discussed option is that SLCC invest more heavily in the southern part of Salt Lake Valley and attempt to capture some of the market in Utah county.\footnote{More directly compete with UVU.} There are three important points to note from the data on this option. First, the major boom has already happened in Utah County. Census projections estimate a 13\% increase in Utah counties population by 2027, much less than the period covered in this analysis (33\%). Second, the same census projections are predicting zero percent growth in the 15-34 demographic in Salt Lake County (Davis and Weber counties growth rate predictions are 5\% and 0\% respectively). Third, even though much of the explosive growth in Utah County appears to have passed, by 2027 Utah county will grow to account for 33\% of the Wasatch Front population (ages 15-34) while Salt Lake County will continue its decline to 44\%. Utah County will be the only substantially growing county for 15-34 year olds along the Wasatch Front and probably the only 'organic' means of growing SLCC enrollment.\footnote{Without successfully acquiring UU market share but by growing enrollments because of population growth.} Finally, all of these population projections are based on prior trends. Local policies can play a huge role in driving regional growth. It is not a coincidence that Utah is a fast growing state and that specific counties are experiencing the lion share of this growth. It is important to keep policy-making at the local and state level in mind when thinking about longer term populations demographics. 
+
+\newpage 
+
+# Appendicies: Maps
+
+## Enrollments densities
+The following maps show the enrollment density of institution enrollments by institution based on the last known student zip code. These maps only look at Salt Lake County and are only relative to one institution. In other words the next three maps only tell you where the majority of enrollment mailing zip codes are located for each institution. Darker colors represent a higher number of enrollments in a zip code. 
+
+In all of the following maps the black dots indicate the location of four SLCC campuses: South High campus, Taylorsville campus, Jordan campus and Miller campus. 
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, cache=T}
+# SLCO 49035, uco 49049, davis 49011, weber 49057
+
+library(choroplethrZip)
+library(scales)
+zips <- data %>% 
+  filter(inst == "SLCC" | 
+           inst == "UVU" | 
+           inst == "UU" |
+           inst == "WSU") %>%
+  filter(year == 2017 | year == 2002) %>%
+  filter(term == 2) %>%
+  group_by(inst, year, zip_code) %>%
+  summarise(n = sum(count))
+
+# SLCC
+slcc_zip <- zips %>% filter(inst == "SLCC") %>% filter(year == 2017) 
+
+slcc_2016 <- as_data_frame(cbind(slcc_zip$zip_code, slcc_zip$n))
+colnames(slcc_2016) <- c("region", "value")
+slcc_2016$region <- as.character(slcc_2016$region)
+slcc_2016$value <- as.double(slcc_2016$value)
+  
+slcc_2016_map <- zip_choropleth(slcc_2016,
+    title = "SLCC Salt Lake county enrollments Fall 2017",
+    legend = "Population",
+    num_colors = 1,
+    county_zoom = c(49035)
+    ) + 
+    coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) + 
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_distiller(type="seq", trans="reverse", palette = "Blues", breaks=pretty_breaks(n=10), name = "# of enrollments")
+
+slcc_2016_map
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, cache=T}
+# UU
+
+UU_zips <- zips %>% filter(inst == "UU") %>% filter(year == 2017) 
+
+uu_2016 <- as_data_frame(cbind(UU_zips$zip_code, UU_zips$n))
+colnames(uu_2016) <- c("region", "value")
+uu_2016$region <- as.character(uu_2016$region)
+uu_2016$value <- as.double(uu_2016$value)
+
+
+uu_2016_map <- zip_choropleth(uu_2016,
+                              title = "University of Utah Salt Lake county enrollments Fall 2017", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_distiller(type="seq", trans="reverse", palette = "Reds", breaks=pretty_breaks(n=10), name = "# of enrollments")
+
+uu_2016_map
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, cache=T}
+# UVU
+
+UVU_zips <- zips %>% filter(inst == "UVU") %>% filter(year == 2017) 
+
+uvu_2016 <- as_data_frame(cbind(UVU_zips$zip_code, UVU_zips$n))
+colnames(uvu_2016) <- c("region", "value")
+uvu_2016$region <- as.character(uvu_2016$region)
+uvu_2016$value <- as.double(uvu_2016$value)
+
+
+uvu_2016_map <- zip_choropleth(uvu_2016,
+                              title = "UVU Salt Lake county enrollments Fall 2017", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +  
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_distiller(type="seq", trans="reverse", palette = "Greens", breaks=pretty_breaks(n=10), name = "# of enrollments") 
+
+uvu_2016_map
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE, cache=T}
+# WSU
+
+WSU_zips <- zips %>% filter(inst == "WSU") %>% filter(year == 2017) 
+
+wsu_2016 <- as_data_frame(cbind(WSU_zips$zip_code, WSU_zips$n))
+colnames(wsu_2016) <- c("region", "value")
+wsu_2016$region <- as.character(wsu_2016$region)
+wsu_2016$value <- as.double(wsu_2016$value)
+
+
+wsu_2016_map <- zip_choropleth(wsu_2016,
+                              title = "WSU Salt Lake county enrollments Fall 2017", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +  
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_distiller(type="seq", trans="reverse", palette = "Purples", breaks=pretty_breaks(n=10))
+
+wsu_2016_map
+```
+
+\newpage
+
+## Enrollments as a percentage of the zip code college aged population.
+
+For the next three maps the total enrollments by institution is divided by the total 15-34 year old population of each zip code. The 15-34 year old population captures the bulk of SLCC's and other institutions' enrollments. Darker zip codes indicate that the institution is capturing a larger percentage of the zip code compared to that institutions performance in other Salt Lake County zip codes. For instance, SLCC captures a larger percent (up to approximately 13\%) of the college age population in zip codes in the southern end of Salt Lake County. 
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, cache=T}
+# determining enrollment % by zip
+# 15-34 age group from emsi
+emsi_data <- read_csv("emsi_slco_02_17.csv")
+colnames(emsi_data) <- c("zip_code", "pop_2002", "pop_2017")
+
+emsi_data$zip_code <- as.character(emsi_data$zip_code)
+emsi_data$pop_2002 <- round(emsi_data$pop_2002)
+emsi_data$pop_2017 <- round(emsi_data$pop_2017)
+
+pct_zip <- zips %>% left_join(emsi_data, by = "zip_code" ) %>%
+  group_by(inst, zip_code, year) %>%
+    filter(zip_code != 84114 & zip_code !=  84122 & 
+           zip_code != 84130 & zip_code != 84132 &
+           zip_code != 84113) %>% 
+  summarise(inst_pct_02 = round(n/pop_2002, 4)*100,
+            inst_pct_17 = round(n/pop_2017, 4)*100)
+
+
+slcc_pct_17 <- pct_zip %>% 
+  filter(inst == "SLCC") %>% filter(year == 2017) %>%
+  filter(is.na(inst_pct_17) == FALSE) %>%
+  select(zip_code, inst_pct_17)
+
+slcc_pct_17 <- as_data_frame(cbind(slcc_pct_17$zip_code, slcc_pct_17$inst_pct_17))
+colnames(slcc_pct_17) <- c("region", "value")
+slcc_pct_17$region <- as.character(slcc_pct_17$region)
+slcc_pct_17$value <- as.double(slcc_pct_17$value)
+
+slcc_pct_map <- zip_choropleth(slcc_pct_17,
+                              title = "SLCC enrollments as a percent of 15-34 population by zip Fall 2017", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +  
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_distiller(type="seq", trans="reverse", palette = "Blues", breaks=pretty_breaks(n=10), name = "% of Population")
+
+slcc_pct_map
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, cache=T}
+uu_pct_17 <- pct_zip %>% 
+  filter(inst == "UU") %>% filter(year == 2017) %>%
+  filter(is.na(inst_pct_17) == FALSE) %>%
+  select(zip_code, inst_pct_17)
+
+uu_pct_17 <- as_data_frame(cbind(uu_pct_17$zip_code, uu_pct_17$inst_pct_17))
+colnames(uu_pct_17) <- c("region", "value")
+uu_pct_17$region <- as.character(uu_pct_17$region)
+uu_pct_17$value <- as.double(uu_pct_17$value)
+
+uu_pct_map <- zip_choropleth(uu_pct_17,
+                              title = "UU enrollments as a percent of 15-34 population by zip", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +  
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_distiller(type="seq", trans="reverse", palette = "Reds", breaks=pretty_breaks(n=10), name = "% of Population") 
+
+uu_pct_map
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, cache=T}
+uvu_pct_17 <- pct_zip %>% 
+  filter(inst == "UVU") %>% filter(year == 2017) %>%
+  filter(is.na(inst_pct_17) == FALSE) %>%
+  select(zip_code, inst_pct_17)
+
+uvu_pct_17 <- as_data_frame(cbind(uvu_pct_17$zip_code, uvu_pct_17$inst_pct_17))
+colnames(uvu_pct_17) <- c("region", "value")
+uvu_pct_17$region <- as.character(uvu_pct_17$region)
+uvu_pct_17$value <- as.double(uvu_pct_17$value)
+
+uvu_pct_map <- zip_choropleth(uvu_pct_17,
+                              title = "UVU enrollments as a percent of 15-34 population by zip", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +  
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_distiller(type="seq", trans="reverse", palette = "Greens", breaks=pretty_breaks(n=10), name = "% of Population") 
+
+uvu_pct_map
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE, cache=T}
+wsu_pct_17 <- pct_zip %>% 
+  filter(inst == "WSU") %>% filter(year == 2017) %>%
+  filter(is.na(inst_pct_17) == FALSE) %>%
+  select(zip_code, inst_pct_17)
+
+wsu_pct_17 <- as_data_frame(cbind(wsu_pct_17$zip_code, wsu_pct_17$inst_pct_17))
+colnames(wsu_pct_17) <- c("region", "value")
+wsu_pct_17$region <- as.character(wsu_pct_17$region)
+wsu_pct_17$value <- as.double(wsu_pct_17$value)
+
+wsu_pct_map <- zip_choropleth(wsu_pct_17,
+                              title = "WSU enrollments as a percent of 15-34 population by zip", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +  
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_distiller(type="seq", trans="reverse", palette = "Purples", breaks=pretty_breaks(n=10))
+
+wsu_pct_map
+```
+
+\newpage
+
+# SLCC Change in perspective
+
+One of the difficulties in analyzing the changing market for higher ed in Salt Lake County is the constant demographic changes within the county. The next series of maps is controlling for the underlying population of each Salt Lake County zip (in the same way as the previous three maps). What these maps show is the change in the percent of the 15-34 year old population within a SLCo zip code from 2002-2017. If a zip code is shaded red this indicates that the institution is capturing a smaller percentage of the 15-34 year old population in 2017 than it was in 2002. 
+
+The map for SLCC is the first in this series. It is quite evident that SLCC is doing a worse job at capturing the higher ed market on the east side of the county than it was 15 years ago. More troubling is the poorer performance of several west side areas, in particular the zip code just south of the Taylorsville campus (84118). The drop in enrollment in 84118 was so steep the decline had to be checked using internal SLCC data which confirmed a similar enrollment decline to the USHE data used through out this study. If you look at the 15-34 year old population change in 84118 for the time period 2002-2017 there is a 9\% growth while SLCC enrollments from this area have fallen by half. The interesting changes in 84118 will be examined in greater detail below.
+
+SLCC has made large relative gains in the south end of Salt Lake County around Herriman and West Jordan while not making either gains or losses in the Draper area. 
+
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE, cache=T}
+diffs <- pct_zip %>% group_by(inst, year, zip_code) %>%
+  gather(pct_year, pct, 4:5) %>%
+  filter(year == 2002 & pct_year == "inst_pct_02" | year == 2017 & pct_year == "inst_pct_17") %>%
+  filter(is.na(pct) == FALSE) %>%
+  spread(pct_year, pct) %>%
+  group_by(inst, zip_code) %>%
+  summarise(test_02 = sum(inst_pct_02, na.rm = T),
+            test_17 = sum(inst_pct_17, na.rm = T),
+            inst_dif = test_17 - test_02) %>%
+  filter(is.infinite(inst_dif) == F) %>%
+  filter(zip_code != 84114 & zip_code !=  84122 & 
+           zip_code != 84130 & zip_code != 84132 &
+           zip_code != 84113) 
+
+slcc_dif <- diffs %>% 
+  filter(inst == "SLCC") %>% 
+  select(zip_code, inst_dif)
+
+slcc_dif_17 <- as_data_frame(cbind(slcc_dif$zip_code, slcc_dif$inst_dif))
+colnames(slcc_dif_17) <- c("region", "value")
+slcc_dif_17$region <- as.character(slcc_dif_17$region)
+slcc_dif_17$value <- as.double(slcc_dif_17$value)
+
+slcc_dif_map <- zip_choropleth(slcc_dif_17,
+                              title = "SLCC enrollment change as a percent of population change Fall 02-17", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) + 
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_gradient2(name = "% change") 
+
+slcc_dif_map
+```
+
+\newpage
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE, cache=T}
+# need a new emsi pull to update the UU data to 2004
+
+uemsi_data <- read_csv("UU_emsi_data.csv")
+colnames(uemsi_data) <- c("zip_code", "pop_2004", "pop_2017")
+uemsi_data$zip_code <- as.character(uemsi_data$zip_code)
+
+uzips <- data %>%
+  filter(inst == "SLCC" |
+           inst == "UVU" |
+           inst == "UU" |
+           inst == "WSU") %>%
+  filter(year == 2017 | year == 2004) %>%
+  filter(term == 2) %>%
+  group_by(inst, year, zip_code) %>%
+  summarise(n = sum(count))
+
+upct_zip <- uzips %>% left_join(uemsi_data, by = "zip_code" ) %>%
+  group_by(inst, zip_code, year) %>%
+    filter(zip_code != 84114 & zip_code !=  84122 &
+           zip_code != 84130 & zip_code != 84132 &
+           zip_code != 84113) %>%
+  summarise(inst_pct_04 = round(n/pop_2004, 4)*100,
+            inst_pct_17 = round(n/pop_2017, 4)*100)
+
+udiffs <- upct_zip %>% group_by(inst, year, zip_code) %>%
+  gather(pct_year, pct, 4:5) %>%
+  filter(year == 2004 & pct_year == "inst_pct_04" | year == 2017 & pct_year == "inst_pct_17") %>%
+  filter(is.na(pct) == FALSE) %>%
+  spread(pct_year, pct) %>%
+  group_by(inst, zip_code) %>%
+  summarise(test_04 = sum(inst_pct_04, na.rm = T),
+            test_17 = sum(inst_pct_17, na.rm = T),
+            inst_dif = test_17 - test_04) %>%
+  filter(is.infinite(inst_dif) == F) %>%
+  filter(zip_code != 84114 & zip_code !=  84122 &
+           zip_code != 84130 & zip_code != 84132 &
+           zip_code != 84113)
+
+uu_dif <- udiffs %>% 
+  filter(inst == "UU") %>% 
+  filter(zip_code != 84112) %>%
+  select(zip_code, inst_dif)
+
+uu_dif_17 <- as_data_frame(cbind(uu_dif$zip_code, uu_dif$inst_dif))
+colnames(uu_dif_17) <- c("region", "value")
+uu_dif_17$region <- as.character(uu_dif_17$region)
+uu_dif_17$value <- as.double(uu_dif_17$value)
+
+uu_dif_map <- zip_choropleth(uu_dif_17,
+                              title = "UU enrollment change as a percent of population change Fall 04-17", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +  
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_gradient2(name = "% change") 
+
+uu_dif_map
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE, cache=T}
+uvu_dif <- diffs %>% 
+  filter(inst == "UVU") %>% 
+  select(zip_code, inst_dif)
+
+uvu_dif_17 <- as_data_frame(cbind(uvu_dif$zip_code, uvu_dif$inst_dif))
+colnames(uvu_dif_17) <- c("region", "value")
+uvu_dif_17$region <- as.character(uvu_dif_17$region)
+uvu_dif_17$value <- as.double(uvu_dif_17$value)
+
+uvu_dif_map <- zip_choropleth(uvu_dif_17,
+                              title = "UVU enrollment change as a percent of population change Fall 02-17", 
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) + 
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_gradient2(name = "% change") 
+
+uvu_dif_map
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE, include=FALSE, cache=T}
+wsu_dif <- diffs %>% 
+  filter(inst == "WSU") %>% 
+  select(zip_code, inst_dif)
+
+wsu_dif_17 <- as_data_frame(cbind(wsu_dif$zip_code, wsu_dif$inst_dif))
+colnames(wsu_dif_17) <- c("region", "value")
+wsu_dif_17$region <- as.character(wsu_dif_17$region)
+wsu_dif_17$value <- as.double(wsu_dif_17$value)
+
+wsu_dif_map <- zip_choropleth(wsu_dif_17,
+                              title = "WSU enrollment change as a percent of population change Fall 02-17",
+                              legend = "Population", 
+                              num_colors = 1, 
+                              county_zoom = 49035) + 
+   coord_map() +
+    geom_point(x = -111.9444, y = 40.6723) +
+    geom_point(x = -111.9743, y = 40.5846) + 
+    geom_point(x = -111.8869, y = 40.7352) + 
+    geom_point(x = -111.9010, y = 40.5752) +  
+    geom_point(x = -111.9482, y = 40.4931, shape = 8) + 
+  scale_fill_gradient2(name = "% change") 
+
+wsu_dif_map
+```
+
+\newpage
+
+## Closer look at 84118 
+
+Figure 6 shows that the decline in enrollments for 84118 is not just a SLCC phenomena as the figure shows all enrollments for the Salt Lake County higher ed market are down. The 15-34 year old population in 84118 grew by 9\% between 2002 and 2017. If you just look at the 15-24 year old population in 84118 there was no growth in the zip code. 
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# 84118 in depth
+data %>% filter(zip_code == "84118" & term == 3) %>% 
+  filter(inst == "SLCC" | inst == "UU" | inst == "SLCC-SAT" | inst == "UVU" | inst == "WSU") %>% 
+  ggplot() + 
+  geom_line(aes(x = year, y = count, col = inst)) + 
+  scale_color_manual(name = "", labels = c("SLCC", "SLCC-SAT", "UU", "UVU", "WSU"), values = c("#00abe1", "#00abe1", "#cc0000", "#275038", "#492365")) + 
+  facet_wrap(~inst, scales = "free_y") + 
+  labs(title = "84118 in perspective", 
+       y = "Number of enrollments", 
+       caption = "Figure 6: Enrollments for Zip code 84118.") + 
+  scale_color_manual(name = "", labels = c("SLCC", "SLCC-SAT", "UU", "UVU", "WSU"), values = c("#00abe1", "#00abe1", "#cc0000", "#275038", "#492365"))
+```
+
+\newpage
+
+### Market share Tables
+
+```{r, echo=FALSE,  message=FALSE}
+share_tbl <- data %>% 
+  group_by(year) %>%
+  summarise(slcc_share = round((sum(count[inst == "SLCC"]/sum(count))*100), 1),
+            uvu_share =  round((sum(count[inst == "UVU"]/sum(count))*100), 1),
+            UU_share = round((sum(count[inst == "UU"]/sum(count))*100), 1),
+            wsu_share = round((sum(count[inst == "WSU"]/sum(count))*100), 1)
+            ) 
+
+knitr::kable(share_tbl, col.names = c("Year", "SLCC", "UVU", "UU", "WSU"), caption = "Market share of USHE Schools by year.")
+```
+
+```{r, echo = FALSE, message=FALSE}
+county_table <- county_data %>% group_by(year) %>%
+  summarise(slc = round((sum(pop[county == "slc"]/sum(pop))*100), 1),
+            utah = round((sum(pop[county == "utah"]/sum(pop))*100), 1),
+            davis = round((sum(pop[county == "davis"]/sum(pop))*100), 1),
+            weber = round((sum(pop[county == "weber"]/sum(pop))*100), 1)
+            )
+
+knitr::kable(county_table, col.names = c("Year", "SLC", "Utah", "Davis", "Weber"), caption = "Share of Wasatch Front population by county.")
+```
+
+\newpage
+
+```{r, echo=FALSE,  message=FALSE}
+inst_share_tbl_kabel <- inst_share_tbl %>% group_by(year) %>%
+  summarise(slcc_share = round(slcc/slc, 3)*100,
+            uu_share = round(uu/slc, 3)*100,
+            uvu_share = round(uvu/utah, 3)*100,
+            wsu_share = round(wsu/north, 3)*100
+            )
+
+knitr::kable(inst_share_tbl_kabel, col.names = c("Year", "SLCC", "UU", "UVU", "Weber"), caption = "Percent of 'home' county 15-34 population enrolled in Fall semester.")
+```
+
+\newpage
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+slcc_dif_tbl <- slcc_dif %>% 
+  arrange(inst_dif) 
+
+colnames(slcc_dif_tbl) <- c("", "Zip", "% Change")
+
+knitr::kable(slcc_dif_tbl, caption = "Change in the percent of 15-34 year olds enrolled at SLCC Fall 2002 - Fall 2017")
+```
+
+\newpage
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+uu_dif_tbl <- uu_dif %>% 
+  arrange(inst_dif) 
+
+colnames(uu_dif_tbl) <- c("", "Zip", "% Change")
+
+knitr::kable(uu_dif_tbl, caption = "Change in the percent of 15-34 year olds enrolled at UU Fall 2002 - Fall 2017")
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+uvu_dif_tbl <- uvu_dif %>% 
+  arrange(inst_dif) 
+
+colnames(uvu_dif_tbl) <- c("", "Zip", "% Change")
+
+knitr::kable(uvu_dif_tbl, caption = "Change in the percent of 15-34 year olds enrolled at UVU Fall 2002 - Fall 2017")
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+wsu_dif_tbl <- wsu_dif %>% 
+  arrange(inst_dif) 
+
+colnames(wsu_dif_tbl) <- c("", "Zip", "% Change")
+
+knitr::kable(wsu_dif_tbl, caption = "Change in the percent of 15-34 year olds enrolled at WSU Fall 2002 - Fall 2017")
+```
+
+
+```{sql, eval = F, include = F, echo = F}
+-- The numbers are different from USHE but they show nearly the same pattern for 84118 --
+<!-- -- 2002 was not avalible, 2003 was used in its place -- -->
+<!-- SELECT COUNT(PIDM) FROM WSRPMGR.BUS_RE_USHE_STUDENTS -->
+<!-- WHERE S_EXTRACT = '3' -->
+<!-- AND S_TERM = '1' -->
+<!-- AND S_YEAR = '2003' -- '2017' -->
+<!-- AND SUBSTR(S_CURR_ZIP, 1, 5) = '84118'; -->
+
+-- 2003: 1394 2017: 779
+-- 2017 enroment represented 55% of 2003 and USHE's data suggested 50% of 2002.
+```
+
+```{r, echo=FALSE, include=FALSE, warning=FALSE, message=F, cache=F}
+eth_data <- read_delim("USHE_enrollment_by_zip_ethnicity.csv", delim ="|")
+colnames(eth_data) <- c("s_iname", "s_year", "s_term", "s_extract", "s_ethnic_h", "s_ethnic_a", "s_ethnic_b", "s_ethnic_i", "s_ethnic_p", "s_ethnic_w", "s_ethnic_n", "s_ethnic_u", "zip")
+
+eth_plot <- eth_data %>% filter(s_iname == "SLCC" | s_iname == "SLCC-SAT" | s_iname == "WSU" | s_iname == "UVU" | s_iname == "UU") %>%
+  gather("eth_col", "eth", 5:12) %>%
+  filter(eth != "NULL") %>%
+  group_by(s_iname, s_year, s_term, eth) %>%
+  tally() %>% 
+  group_by(s_iname, s_year, s_term) %>%
+  summarise(w_pct = sum(n[eth == "W"])/sum(n),
+            h_pct = sum(n[eth == "H"])/sum(n),
+            a_pct = sum(n[eth == "A"])/sum(n),
+            b_pct = sum(n[eth == "B"])/sum(n), 
+            i_pct = sum(n[eth == "I"])/sum(n),
+            p_pct = sum(n[eth == "P"])/sum(n), 
+            n_pct = sum(n[eth == "N"])/sum(n),
+            u_pct = sum(n[eth == "U" | eth == "u"])/sum(n)) %>% 
+  gather("eth", "pct", 4:11) %>% 
+  filter(s_term == 2) %>%
+  ggplot() + 
+  geom_line(aes(x = s_year, y = (round(pct, 4)*100), col = eth)) + 
+  facet_wrap(~s_iname) + 
+  labs(title = "Ethnicity by institution Fall semester", x = "Year", y = "Percent of institution total enrollment")
+
+# sanity check
+# eth_data %>% filter(s_iname == "SLCC" | s_iname == "SLCC-SAT" | s_iname == "WSU" | s_iname == "UVU" | s_iname == "UU") %>%
+#   gather("eth_col", "eth", 5:12) %>%
+#   filter(eth != "NULL") %>%
+#   group_by(s_iname, s_year, s_term, eth) %>%
+#   tally() %>% 
+#   group_by(s_iname, s_year, s_term) %>%
+#   summarise(w_pct = sum(n[eth == "W"])/sum(n),
+#             h_pct = sum(n[eth == "H"])/sum(n),
+#             a_pct = sum(n[eth == "A"])/sum(n),
+#             b_pct = sum(n[eth == "B"])/sum(n), 
+#             i_pct = sum(n[eth == "I"])/sum(n),
+#             p_pct = sum(n[eth == "P"])/sum(n), 
+#             n_pct = sum(n[eth == "N"])/sum(n),
+#             u_pct = sum(n[eth == "U" | eth == "u"])/sum(n)) %>% 
+#   gather("eth", "pct", 4:11) %>% 
+#   filter(s_term == 3) %>%
+#   group_by(s_iname, s_year) %>%
+#   summarise(sum = sum(pct)) %>% View()
+
+white_pct_plot <- eth_data %>% filter(s_iname == "SLCC" | s_iname == "SLCC-SAT" | s_iname == "WSU" | s_iname == "UVU" | s_iname == "UU") %>%
+  gather("eth_col", "eth", 5:12) %>%
+  filter(eth != "NULL") %>%
+  group_by(s_iname, s_year, s_term, eth) %>%
+  tally() %>% 
+  group_by(s_iname, s_year, s_term) %>%
+  summarise(w_pct = sum(n[eth == "W"])/sum(n),
+            h_pct = sum(n[eth == "H"])/sum(n),
+            a_pct = sum(n[eth == "A"])/sum(n),
+            b_pct = sum(n[eth == "B"])/sum(n), 
+            i_pct = sum(n[eth == "I"])/sum(n),
+            p_pct = sum(n[eth == "P"])/sum(n), 
+            n_pct = sum(n[eth == "N"])/sum(n),
+            u_pct = sum(n[eth == "U" | eth == "u"])/sum(n)) %>% 
+  gather("eth", "pct", 4:11) %>% 
+  filter(s_term == 2 & eth == "w_pct") %>%
+  filter(s_iname != "WSU") %>%
+  ggplot() + 
+  geom_line(aes(x = s_year, y = (round(pct, 4)*100), col = s_iname)) + 
+  labs(title = "% White Fall enrollments by institution", x = "Year", y = "Percent of institution total enrollment")
+
+white_plot <- eth_data %>% filter(s_iname == "SLCC" | s_iname == "UVU" | s_iname == "UU") %>%
+  gather("eth_col", "eth", 5:12) %>%
+  group_by(s_iname, s_year, s_term, eth) %>%
+  tally() %>% 
+  group_by(s_iname, s_year, s_term) %>%
+  filter(s_term == 2 & eth == "W") %>%
+  ggplot() + 
+  geom_line(aes(x = s_year, y = n, col = s_iname)) + 
+  labs(title = "Total white enrollments by institutions", x = "Year", y = "enrollments")
+```
+
+\newpage
+
+# Ethnicity break down
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+eth_data %>% filter(s_iname == "SLCC" | s_iname == "SLCC-SAT" | s_iname == "WSU" | s_iname == "UVU" | s_iname == "UU") %>%
+  filter(s_year == 2017 & s_term == 2) %>%
+  gather("eth_col", "eth", 5:12) %>%
+  filter(eth != "NULL") %>%
+  group_by(s_iname, eth) %>%
+  tally() %>%
+  spread("eth", "n") %>%
+  knitr::kable(col.names = c("Institution", "Asian", "Black", "HLL", "Native Am", "Non-resident", "Pac. Isl", "Unspecified", "White"),
+               caption = "Institution enrollments by ethnicity Fall 2017. Source: USHE")
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+slco_2017_eth_n <- c(17226, 6346, 69322, 2784, 6660, 9026, 230657)
+slco_2017_eth_pct <- c(5.01, 1.86, 20.27, 0.81, 1.94, 2.64, 67.46)
+
+slco_2017_eth <- rbind(format(slco_2017_eth_n, digits = 4), 
+                       format(slco_2017_eth_pct, digits = 2))
+colnames(slco_2017_eth) <- c("Asian", "Black", "HLL", "Native Am", "Pac. Isl", "More than one", "White")
+rownames(slco_2017_eth) <- c("Total Pop.", "% of county")
+
+# slco_2017_eth <- as_data_frame(slco_2017_eth)
+
+knitr::kable(slco_2017_eth, caption = "Salt Lake County 15-34 by ethnicity 2017. Source: EMSI")
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+eth_data %>% filter(s_iname == "SLCC" | s_iname == "SLCC-SAT" | s_iname == "WSU" | s_iname == "UVU" | s_iname == "UU") %>%
+  filter(s_year == 2017 & s_term == 2) %>%
+  gather("eth_col", "eth", 5:12) %>%
+  filter(eth != "NULL") %>%
+  group_by(s_iname, eth) %>%
+  tally() %>% 
+  summarise(a_pct = round((sum(n[eth == "A"])/sum(n)*100), 2) ,
+            b_pct = round((sum(n[eth == "B"])/sum(n)*100), 2),
+            h_pct = round((sum(n[eth == "H"])/sum(n)*100), 2),
+            i_pct = round((sum(n[eth == "I"])/sum(n)*100), 2), 
+            n_pct = round((sum(n[eth == "N"])/sum(n)*100), 2),
+            p_pct = round((sum(n[eth == "P"])/sum(n)*100), 2), 
+            u_pct = round((sum(n[eth == "U"])/sum(n)*100), 2),
+            w_pct = round((sum(n[eth == "W" | eth == "u"])/sum(n)*100), 2)) %>% 
+  knitr::kable(col.names = c("Institution", "% Asian", "% Black", "% HLL", "% Native Am", "% Non-res", "% Pac. Isl", "% Unspecified", "% White"),
+               caption = "Percent of institution enrollment by ethnicity Fall 2017. Source: USHE")
+```
+
+The final table is just a bench mark and not meant for an actual representation of SLCC market capture in Salt Lake County. Table 7 is just taking the values of table 4 for SLCC and dividing them by the values of table 5.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+SLCC_enrolment_pct <- cbind(9.2, 14.4, 7.5, 20.9, 8.9, 10.2)
+colnames(SLCC_enrolment_pct) <- c("Asian", "Black", "HLL", "Native Am", "Pac. Isl", "White")
+
+knitr::kable(SLCC_enrolment_pct, caption = "SLCC share of 15-34 potentially enrolled Fall 2017")
+```
+
+\newpage
+
+```{r, echo=FALSE}
+col_names <- c("Year", "Asian", "Black", "HLL", "Native Am.", "Non-resident", "Pacific Isl.", "Unspecified", "White")
+
+eth_data %>% filter(s_iname == "SLCC") %>%
+  filter(s_term==2) %>%
+  gather("eth_col", "eth", 5:12) %>%
+  filter(eth != "NULL") %>%
+  group_by(s_year, eth) %>%
+  tally() %>%
+    summarise(a_pct = round((sum(n[eth == "A"])/sum(n)*100), 2) ,
+            b_pct = round((sum(n[eth == "B"])/sum(n)*100), 2),
+            h_pct = round((sum(n[eth == "H"])/sum(n)*100), 2),
+            i_pct = round((sum(n[eth == "I"])/sum(n)*100), 2), 
+            n_pct = round((sum(n[eth == "N"])/sum(n)*100), 2),
+            p_pct = round((sum(n[eth == "P"])/sum(n)*100), 2), 
+            u_pct = round((sum(n[eth == "U"])/sum(n)*100), 2),
+            w_pct = round((sum(n[eth == "W" | eth == "u"])/sum(n)*100), 2)) %>%
+  knitr::kable(col.names = col_names, caption = "FALL SLCC enthicity share by year.")
+```
+
+```{r, echo=FALSE}
+labels <- c("a_pct" = "Asian", "b_pct" = "Black", "h_pct" = "HLL", "i_pct" = "Native Am.", "n_pct" = "Non-resident", "p_pct" = "Pacific Isl.", "u_pct" = "Unspecified", "w_pct" = "White")
+
+eth_data %>% filter(s_iname == "SLCC") %>%
+  filter(s_term==2) %>%
+  gather("eth_col", "eth", 5:12) %>%
+  filter(eth != "NULL") %>%
+  group_by(s_year, eth) %>%
+  tally() %>%
+    summarise(a_pct = round((sum(n[eth == "A"])/sum(n)*100), 2) ,
+            b_pct = round((sum(n[eth == "B"])/sum(n)*100), 2),
+            h_pct = round((sum(n[eth == "H"])/sum(n)*100), 2),
+            i_pct = round((sum(n[eth == "I"])/sum(n)*100), 2), 
+            n_pct = round((sum(n[eth == "N"])/sum(n)*100), 2),
+            p_pct = round((sum(n[eth == "P"])/sum(n)*100), 2), 
+            u_pct = round((sum(n[eth == "U"])/sum(n)*100), 2),
+            w_pct = round((sum(n[eth == "W" | eth == "u"])/sum(n)*100), 2)) %>%
+  gather("eth", "n", 2:9) %>%
+  ggplot() + 
+  geom_line(aes(x=s_year, y=n)) + 
+  facet_wrap(~eth, scales = "free_y", labeller = labeller(eth = labels)) + 
+  labs(x="Year", y="Percent of SLCC enrollment", title="Fall SLCC ethnicity share by year")
+```
+
+
+
+\newpage
+
+```{r, echo=FALSE}
+labels <- c("A" = "Asian", "B" = "Black", "H" = "HLL", "I" = "Native Am.", "N" = "Non-resident", "P" = "Pacific Isl.", "U" = "Unspecified", "W" = "White")
+
+eth_data %>% filter(s_term==2) %>%
+  filter(s_iname == "SLCC" |
+           s_iname == "WSU" |
+           s_iname == "UVU" |
+           s_iname == "UU") %>%
+  gather("eth_col", "eth", 5:12) %>%
+  filter(eth != "NULL") %>%
+  filter(eth != "u") %>%
+  group_by(s_year, s_iname, eth) %>%
+  tally() %>%
+  ggplot() + 
+  geom_line(aes(x = s_year, y = n, col = s_iname)) +
+  scale_color_manual(name = "", labels = c("SLCC", "UU", "UVU", "WSU"), values = c("#00abe1", "#cc0000", "#275038", "#492365")) + 
+  facet_wrap(~eth, scales = "free_y", labeller = labeller(eth = labels)) + 
+  labs(y = "Number of enrollments", x = "Year", title = "Enrollments by Ethnicity")
+```
+
+```{r, echo=FALSE}
+eth_data %>% filter(s_term==2) %>%
+  filter(s_iname == "SLCC") %>%
+  gather("eth_col", "eth", 5:12) %>%
+  filter(eth != "NULL" & eth != "u") %>%
+  group_by(s_year, eth) %>%
+  tally() %>%
+  ggplot() +
+  geom_line(aes(x = s_year, y = n)) + 
+  facet_wrap(~eth, scales = "free_y", labeller = labeller(eth = labels)) + 
+  labs(title = "SLCC enrollments by ethnicity", y = "Number of enrollments", x = "Year")
+  
+```
+
+\newpage
+
+# Wasatch Front USHE Enrollment and Market Share
+
+```{r, echo=FALSE, include=FALSE, message=FALSE, warning=FALSE}
+# http://www.ciclt.net/sn/clt/capitolimpact/gw_ziplist.aspx?ClientCode=capitolimpact&State=ut&StName=Utah&StFIPS=49&FIPS=49035
+# https://data.mongabay.com/igapo/zip_codes/counties/alpha/Davis%20County-Utah1.html
+county_zips <- read_csv("utah_zips.csv", col_types = list(col_character(), col_character(), col_character()))
+colnames(county_zips) <- c("zip_code", "city", "county")
+county_zips <- county_zips %>% group_by(zip_code, county) %>% tally() %>% select(zip_code, county) %>% filter(is.na(county) != TRUE)
+
+test <- read_csv("test.csv", col_types = list(col_character(), col_character()))
+colnames(test) <- c("zip_code", "county")
+test$zip_code <- substr(test$zip_code, 1, 5)
+
+data <- data %>% filter(nchar(zip_code) == 5) %>% filter(zip_code != "840-7") %>% filter(inst != "USUE") %>% filter(inst != "USUE-DWE")
+
+county_data <- data %>% filter(term == 2) %>%
+  left_join(test, by = "zip_code") %>% 
+  distinct(inst, zip_code, county, year, count) %>%
+  group_by(inst, county, year) %>%
+  summarise(n = sum(count)) %>% filter(is.na(county) != T) 
+
+# Salt Lake County
+slco_ushe <- county_data %>% filter(county == "Salt Lake County") %>% select(inst, year, n) %>%
+  spread(year, n)
+
+slco_ushe$change <- slco_ushe$`2017` - slco_ushe$`2015`
+slco_ushe$change_pct <- round((log(slco_ushe$`2017`) - log(slco_ushe$`2015`))*100, 2)
+slco_ushe[is.na(slco_ushe)==T] <- 0
+
+ushe_schools <- c("DSU", "SLCC", "SLCC-SAT", "SNOW", "SUU", "USU", "UU", "UVU", "WSU")
+slco_ms_17 <-rbind()
+for (i in ushe_schools){
+  j <- round((slco_ushe$`2017`[slco_ushe$inst==i]/sum(slco_ushe$`2017`))*100, 2)
+  slco_ms_17[i] <- j
+}
+slco_ms_16 <-rbind()
+for (i in ushe_schools){
+  j <- round((slco_ushe$`2016`[slco_ushe$inst==i]/sum(slco_ushe$`2016`))*100, 2)
+  slco_ms_16[i] <- j
+}
+slco_ms_15 <-rbind()
+for (i in ushe_schools){
+  j <- round((slco_ushe$`2015`[slco_ushe$inst==i]/sum(slco_ushe$`2015`))*100, 2)
+  slco_ms_15[i] <- j
+}
+
+slco_ushe <- cbind(as_data_frame(slco_ushe), slco_ms_15, slco_ms_16, slco_ms_17)
+slco_ushe$share_change <- slco_ushe$slco_ms_17 - slco_ushe$slco_ms_15
+
+# Utah County
+utah_ushe <- county_data %>% filter(county == "Utah County") %>% select(inst, year, n) %>%
+  spread(year, n)
+
+utah_ushe$change <- utah_ushe$`2017` - utah_ushe$`2015`
+utah_ushe$change_pct <- round((log(utah_ushe$`2017`) - log(utah_ushe$`2015`))*100, 2)
+utah_ushe[is.na(utah_ushe)==T] <- 0
+
+utah_ms_17 <- rbind()
+utah_ms_16 <- rbind()
+utah_ms_15 <- rbind()
+
+for (i in ushe_schools){
+  j <- round((utah_ushe$`2017`[utah_ushe$inst==i]/sum(utah_ushe$`2017`))*100, 2)
+  utah_ms_17[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((utah_ushe$`2016`[utah_ushe$inst==i]/sum(utah_ushe$`2016`))*100, 2)
+  utah_ms_16[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((utah_ushe$`2015`[utah_ushe$inst==i]/sum(utah_ushe$`2015`))*100, 2)
+  utah_ms_15[i] <- j
+}
+utah_ushe <- cbind(as_data_frame(utah_ushe), utah_ms_15, utah_ms_16, utah_ms_17)
+utah_ushe$share_change <- utah_ushe$utah_ms_17 - utah_ushe$utah_ms_15
+
+# Davis County
+davis_ushe <- county_data %>% filter(county == "Davis County") %>% select(inst, year, n) %>%
+  spread(year, n)
+
+davis_ushe$change <- davis_ushe$`2017` - davis_ushe$`2015`
+davis_ushe$change_pct <- round((log(davis_ushe$`2017`) - log(davis_ushe$`2015`))*100, 2)
+davis_ushe[is.na(davis_ushe)==T] <- 0
+
+davis_ms_17 <- rbind()
+davis_ms_16 <- rbind()
+davis_ms_15 <- rbind()
+
+for (i in ushe_schools){
+  j <- round((davis_ushe$`2017`[davis_ushe$inst==i]/sum(davis_ushe$`2017`))*100, 2)
+  davis_ms_17[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((davis_ushe$`2016`[davis_ushe$inst==i]/sum(davis_ushe$`2016`))*100, 2)
+  davis_ms_16[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((davis_ushe$`2015`[davis_ushe$inst==i]/sum(davis_ushe$`2015`))*100, 2)
+  davis_ms_15[i] <- j
+}
+davis_ushe <- cbind(as_data_frame(davis_ushe), davis_ms_15, davis_ms_16, davis_ms_17)
+davis_ushe$share_change <- davis_ushe$davis_ms_17 - davis_ushe$davis_ms_15
+```
+
+These tables use institution totals which differs from the previous market share report.
+
+```{r, echo=FALSE}
+
+ushe_col_names <- c("Institution", "2015", "2016", "2017", "Change", "% Change", "Share 15", "Share 16", "Share 17", "Share Change")
+slc_ms_table <- cbind(slco_ushe[,2], slco_ushe[,16:24])
+#slc_ms_table[,5] = ifelse(slc_ms_table[,5] < 0 , paste("\\color{red}{", slc_ms_table[,5], "}"), slc_ms_table[,2])
+#knitr::kable(slc_ms_table, "latex", col.names = ushe_col_names, caption = "Salt Lake County")
+knitr::kable(slc_ms_table, col.names = ushe_col_names, caption = "Salt Lake County")
+```
+
+```{r, echo=FALSE}
+utah_ms_table <- cbind(utah_ushe[,2], utah_ushe[,16:24])
+knitr::kable(utah_ms_table, col.names = ushe_col_names, caption = "Utah County")
+```
+
+
+```{r, echo=FALSE}
+davis_ms_table <- cbind(davis_ushe[,2], davis_ushe[,16:24])
+knitr::kable(davis_ms_table, col.names = ushe_col_names, caption = "Davis County")
+```
+
+\newpage
+
+# Market Share by Salt Lake County region
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+region <- read_csv("region.csv")
+colnames(region) <- c("region", "zip_code")
+region$zip_code <- as.character(region$zip_code)
+
+region_data <- data %>% filter(term==2) %>%
+  left_join(region, by = "zip_code") %>%
+  filter(is.na(region) != T) %>%
+  group_by(inst, year, region) %>%
+  summarise(n = sum(count))
+
+north <- region_data %>% filter(region == "N") %>%
+  select(inst, year, n) %>%
+  spread(year, n)
+north[is.na(north)==T] <- 0
+north <- as_data_frame(cbind(north$inst, north$`2015`, north$`2016`, north$`2017`))
+colnames(north) <- c("Institution", "2015", "2016", "2017")
+north$`2017` <- as.numeric(north$`2017`)
+north$`2016` <- as.numeric(north$`2016`)
+north$`2015` <- as.numeric(north$`2015`)
+north$change <- north$`2017` - north$`2015`
+north$change_pct <- round((log(north$`2017`) - log(north$`2015`))*100, 2)
+
+south <- region_data %>% filter(region == "S") %>%
+  select(inst, year, n) %>%
+  spread(year, n)
+south[is.na(south)==T] <- 0
+south <- as_data_frame(cbind(south$inst, south$`2015`, south$`2016`, south$`2017`))
+colnames(south) <- c("Institution", "2015", "2016", "2017")
+south$`2017` <- as.numeric(south$`2017`)
+south$`2016` <- as.numeric(south$`2016`)
+south$`2015` <- as.numeric(south$`2015`)
+south$change <- south$`2017` - south$`2015`
+south$change_pct <- round((log(south$`2017`) - log(south$`2015`))*100, 2)
+
+west <- region_data %>% filter(region == "W") %>%
+  select(inst, year, n) %>%
+  spread(year, n)
+west[is.na(west)==T] <- 0
+west <- as_data_frame(cbind(west$inst, west$`2015`, west$`2016`, west$`2017`))
+colnames(west) <- c("Institution", "2015", "2016", "2017")
+west$`2017` <- as.numeric(west$`2017`)
+west$`2016` <- as.numeric(west$`2016`)
+west$`2015` <- as.numeric(west$`2015`)
+west$change <- west$`2017` - west$`2015`
+west$change_pct <- round((log(west$`2017`) - log(west$`2015`))*100, 2)
+
+east <- region_data %>% filter(region == "E") %>%
+  select(inst, year, n) %>%
+  spread(year, n)
+east[is.na(east)==T] <- 0
+east <- as_data_frame(cbind(east$inst, east$`2015`, east$`2016`, east$`2017`))
+colnames(east) <- c("Institution", "2015", "2016", "2017")
+east$`2017` <- as.numeric(east$`2017`)
+east$`2016` <- as.numeric(east$`2016`)
+east$`2015` <- as.numeric(east$`2015`)
+east$change <- east$`2017` - east$`2015`
+east$change_pct <- round((log(east$`2017`) - log(east$`2015`))*100, 2)
+
+
+# north loops
+north_15 <- rbind()
+north_16 <- rbind()
+north_17 <- rbind()
+
+for (i in ushe_schools){
+  j <- round((north$`2017`[north$Institution==i]/sum(north$`2017`))*100, 2)
+  north_17[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((north$`2016`[north$Institution==i]/sum(north$`2016`))*100, 2)
+  north_16[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((north$`2015`[north$Institution==i]/sum(north$`2015`))*100, 2)
+  north_15[i] <- j
+}
+north <- cbind(as_data_frame(north), north_15, north_16, north_17)
+north$share_change <- north$north_17 - north$north_15
+
+# south loops
+south_15 <- rbind()
+south_16 <- rbind()
+south_17 <- rbind()
+
+for (i in ushe_schools){
+  j <- round((south$`2017`[south$Institution==i]/sum(south$`2017`))*100, 2)
+  south_17[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((south$`2016`[south$Institution==i]/sum(south$`2016`))*100, 2)
+  south_16[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((south$`2015`[south$Institution==i]/sum(south$`2015`))*100, 2)
+  south_15[i] <- j
+}
+south <- cbind(as_data_frame(south), south_15, south_16, south_17)
+south$share_change <- south$south_17 - south$south_15
+
+# west loops
+west_15 <- rbind()
+west_16 <- rbind()
+west_17 <- rbind()
+
+for (i in ushe_schools){
+  j <- round((west$`2017`[west$Institution==i]/sum(west$`2017`))*100, 2)
+  west_17[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((west$`2016`[west$Institution==i]/sum(west$`2016`))*100, 2)
+  west_16[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((west$`2015`[west$Institution==i]/sum(west$`2015`))*100, 2)
+  west_15[i] <- j
+}
+west <- cbind(as_data_frame(west), west_15, west_16, west_17)
+west$share_change <- west$west_17 - west$west_15
+
+# east loops
+east_15 <- rbind()
+east_16 <- rbind()
+east_17 <- rbind()
+
+for (i in ushe_schools){
+  j <- round((east$`2017`[east$Institution==i]/sum(east$`2017`))*100, 2)
+  east_17[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((east$`2016`[east$Institution==i]/sum(east$`2016`))*100, 2)
+  east_16[i] <- j
+}
+for (i in ushe_schools){
+  j <- round((east$`2015`[east$Institution==i]/sum(east$`2015`))*100, 2)
+  east_15[i] <- j
+}
+east <- cbind(as_data_frame(east), east_15, east_16,east_17)
+east$share_change <- east$east_17 - east$east_15
+```
+
+```{r,echo=FALSE}
+north_ms_table <- north
+colnames(north_ms_table) <- ushe_col_names
+knitr::kable(north_ms_table, row.names = F, caption = "Market Share for the North: the North remebers")
+```
+
+```{r,echo=FALSE}
+south_ms_table <- south
+colnames(south_ms_table) <- ushe_col_names
+knitr::kable(south_ms_table, row.names = F, caption = "Market Share for the South")
+```
+
+```{r,echo=FALSE}
+west_ms_table <- west
+colnames(west_ms_table) <- ushe_col_names
+knitr::kable(west_ms_table, row.names = F, caption = "Market Share for the West")
+```
+
+
+```{r,echo=FALSE}
+east_ms_table <- east
+colnames(east_ms_table) <- ushe_col_names
+knitr::kable(east_ms_table, row.names = F, caption = "Market Share for the East")
+```
+
+```{r,echo=FALSE, include=FALSE}
+# combining UU and SLCC
+zips_slc <- county_zips %>% filter(county == "Salt Lake County")
+zips_utah <- county_zips %>% filter(county == "Utah County")
+zips_davis_weber <- county_zips %>% filter(county == "Weber County" | county == "Davis County")
+zips_davis <- county_zips %>% filter(county == "Davis County")
+
+inst_tots <- data %>% group_by(year) %>% filter(term == 2) %>% filter(year > 2003) %>%
+  summarise(slcc = sum(count[inst == "SLCC" | inst == "UU"]),
+            uvu = sum(count[inst == "UVU"]),
+            wsu = sum(count[inst == "WSU"])
+            )
+
+# limiting enrollment by county
+sl_tots <- data %>% group_by(year) %>% filter(term==2) %>% filter(year>2003) %>%
+  inner_join(zips_slc, by = "zip_code") %>%
+  summarise(slcc_uu = sum(count[inst=="SLCC"|inst=="UU"]),
+            uvu = sum(count[inst=="UVU"]),
+            wsu = sum(count[inst=="WSU"]))
+
+uc_tots <- data %>% group_by(year) %>% filter(term==2) %>% filter(year>2003) %>%
+  inner_join(zips_utah, by = "zip_code") %>%
+  summarise(slcc_uu = sum(count[inst=="SLCC"|inst=="UU"]),
+            uvu = sum(count[inst=="UVU"]),
+            wsu = sum(count[inst=="WSU"]))
+
+dw_tots <- data %>% group_by(year) %>% filter(term==2) %>% filter(year>2003) %>%
+  inner_join(zips_davis_weber, by = "zip_code") %>%
+  summarise(slcc_uu = sum(count[inst=="SLCC"|inst=="UU"]),
+            uvu = sum(count[inst=="UVU"]),
+            wsu = sum(count[inst=="WSU"]))
+
+davis_tots <- data %>% group_by(year) %>% filter(term==2) %>% filter(year>2003) %>%
+  inner_join(zips_davis, by = "zip_code") %>%
+  summarise(slcc_uu = sum(count[inst=="SLCC"|inst=="UU"]),
+            uvu = sum(count[inst=="UVU"]),
+            wsu = sum(count[inst=="WSU"]))
+
+# county pop data
+county_data <- read_csv("county.csv") %>%
+  gather("county", "pop", 2:5)
+colnames(county_data) <- c("year", "county", "pop")
+county_tots <- county_data %>% spread("county", "pop")
+
+# total
+inst_share_tbl <- inst_tots %>% left_join(county_tots, by = "year")
+inst_share_tbl$north <- inst_share_tbl$davis + inst_share_tbl$weber
+
+# sl county
+slc_share_tbl <- sl_tots %>% left_join(county_tots, by = "year")
+
+# ut county
+ut_share_tbl <- uc_tots %>% left_join(county_tots, by = "year")
+
+# davis and weber county
+north_share_table <- dw_tots %>% left_join(county_tots, by = "year")
+
+# davis county
+davis_share_table <- davis_tots %>% left_join(county_tots, by = "year")
+
+#combined
+combined_share_table <- sl_tots %>% left_join(uc_tots, by = "year") %>%
+  left_join(dw_tots, by = "year") %>%
+  left_join(county_tots, by = "year")
+combined_share_table$north <- combined_share_table$weber + combined_share_table$davis
+
+# original plot
+totenroll_countypop <- inst_share_tbl %>% group_by(year) %>%
+  summarise(slcc_share = round(slcc/slc, 3)*100,
+            uvu_share = round(uvu/utah, 3)*100,
+            wsu_share = round(wsu/north, 3)*100
+            ) %>%
+  gather("county", "share", 2:4) %>%
+  ggplot() + 
+  geom_line(aes(x = year, y = share, col = county )) + 
+  geom_point(aes(x = year, y = share, col = county, shape = county)) + 
+  scale_color_manual(name = "", labels = c("SLC/UU","UVU", "WSU"), values = c("#00abe1", "#275038", "#492365")) + 
+  scale_shape_manual(name = "", labels = c("SLC/UU", "UVU", "WSU"), values = c(18, 19, 17)) + 
+  labs(x = "Year", 
+       y = "% Share of 'home' county", 
+       title = "Total Fall enrollment compared to 'home' county pop (15-34).", 
+       caption = "Figure 5: Proportion of 'home' county population (15-34) enrolled in Fall semester.") + 
+  ylim(0, 23)
+  
+# combined plot
+countyenroll_countypop <- combined_share_table %>% group_by(year) %>%
+  summarise(sluu_slc = round(slcc_uu.x/slc, 3)*100,
+            uvu_slc = round(uvu.y/utah, 3)*100,
+            wsu_slc = round(wsu/north, 3)*100) %>%
+  gather("county", "share", 2:4) %>%
+  ggplot() + 
+  geom_line(aes(x = year, y = share, col = county )) + 
+  geom_point(aes(x = year, y = share, col = county, shape = county)) + 
+  scale_color_manual(name = "", labels = c("SLCC/UU","UVU", "WSU"), values = c("#00abe1", "#275038", "#492365")) + 
+  scale_shape_manual(name = "", labels = c("SLCC/UU", "UVU", "WSU"), values = c(18, 19, 17)) + 
+  labs(x = "Year", 
+       y = "% Share of 'home' county", 
+       title = "Fall enrollment from 'home' county compared to 'home' county pop (15-34).", 
+       caption = "Figure 5: Proportion of 'home' county population (15-34) enrolled in Fall semester.") + 
+  ylim(0, 23)
+
+```
+
+```{r, echo=FALSE}
+totenroll_countypop
+```
+
+
+```{r echo=FALSE}
+countyenroll_countypop
+```
+
+
+```{r,echo=FALSE}
+# combining UU and SLCC
+zips_slc <- county_zips %>% filter(county == "Salt Lake County")
+zips_utah <- county_zips %>% filter(county == "Utah County")
+zips_davis_weber <- county_zips %>% filter(county == "Weber County" | county == "Davis County")
+zips_davis <- county_zips %>% filter(county == "Davis County")
+
+inst_tots <- data %>% group_by(year) %>% filter(term == 2) %>% filter(year > 2003) %>%
+  summarise(slcc = sum(count[inst == "SLCC"]),
+            uu = sum(count[inst == "UU"]),
+            uvu = sum(count[inst == "UVU"]),
+            wsu = sum(count[inst == "WSU"])
+            )
+
+# limiting enrollment by county
+sl_tots <- data %>% group_by(year) %>% filter(term==2) %>% filter(year>2003) %>%
+  inner_join(zips_slc, by = "zip_code") %>%
+  summarise(slcc = sum(count[inst=="SLCC"]),
+            uu = sum(count[ inst == "UU"]),
+            uvu = sum(count[inst=="UVU"]),
+            wsu = sum(count[inst=="WSU"]))
+
+uc_tots <- data %>% group_by(year) %>% filter(term==2) %>% filter(year>2003) %>%
+  inner_join(zips_utah, by = "zip_code") %>%
+  summarise(slcc = sum(count[inst=="SLCC"]),
+            uu = sum(count[ inst == "UU"]),
+            uvu = sum(count[inst=="UVU"]),
+            wsu = sum(count[inst=="WSU"]))
+
+dw_tots <- data %>% group_by(year) %>% filter(term==2) %>% filter(year>2003) %>%
+  inner_join(zips_davis_weber, by = "zip_code") %>%
+  summarise(slcc = sum(count[inst=="SLCC"]),
+            uu = sum(count[ inst == "UU"]),
+            uvu = sum(count[inst=="UVU"]),
+            wsu = sum(count[inst=="WSU"]))
+
+davis_tots <- data %>% group_by(year) %>% filter(term==2) %>% filter(year>2003) %>%
+  inner_join(zips_davis, by = "zip_code") %>%
+  summarise(slcc = sum(count[inst=="SLCC"]),
+            uu = sum(count[ inst == "UU"]),
+            uvu = sum(count[inst=="UVU"]),
+            wsu = sum(count[inst=="WSU"]))
+```
+
+```{r, include=FALSE, echo=FALSE}
+# county pop data
+county_data <- read_csv("county.csv") %>%
+  gather("county", "pop", 2:5)
+colnames(county_data) <- c("year", "county", "pop")
+county_tots <- county_data %>% spread("county", "pop")
+```
+
+```{r, echo=FALSE}
+inst_share_tbl <- inst_tots %>% left_join(county_tots, by = "year")
+inst_share_tbl$north <- inst_share_tbl$davis + inst_share_tbl$weber
+
+# sl county
+slc_share_tbl <- sl_tots %>% left_join(county_tots, by = "year")
+
+# ut county
+ut_share_tbl <- uc_tots %>% left_join(county_tots, by = "year")
+
+# davis and weber county
+north_share_table <- dw_tots %>% left_join(county_tots, by = "year")
+
+# davis county
+davis_share_table <- davis_tots %>% left_join(county_tots, by = "year")
+
+#combined
+combined_share_table <- sl_tots %>% left_join(uc_tots, by = "year") %>%
+  left_join(dw_tots, by = "year") %>%
+  left_join(county_tots, by = "year")
+combined_share_table$north <- combined_share_table$weber + combined_share_table$davis
+
+# only for home county plot
+home_co_plot <- combined_share_table %>% group_by(year) %>%
+  summarise(slcc_share = round(slcc.x/slc, 3)*100,
+            uu_share = round(uu.x/slc, 3)*100,
+            uvu_share = round(uvu.y/utah, 3)*100,
+            wsu_share = round(wsu/north, 3)*100
+            ) %>%
+  gather("county", "share", 2:5) %>%
+  ggplot() + 
+  geom_line(aes(x = year, y = share, col = county )) + 
+  geom_point(aes(x = year, y = share, col = county, shape = county)) + 
+    scale_color_manual(name = "", labels = c("SLCC", "UU", "UVU", "WSU"), values = c("#00abe1", "#cc0000", "#275038", "#492365")) + 
+  scale_shape_manual(name = "", labels = c("SLCC", "UU", "UVU", "WSU"), values = c(18, 15, 19, 17)) + 
+  labs(x = "Year", 
+       y = "% Share of 'home' county", 
+       title = "Fall enrollment compared to 'home' county pop (15-34).", 
+       caption = "Figure 5: Proportion of 'home' county population (15-34) enrolled in Fall semester.") + 
+  ylim(0, 17)
+
+
+home_co_tbl <- combined_share_table %>% group_by(year) %>%
+  summarise(slcc_share = round(slcc.x/slc, 3)*100,
+            uu_share = round(uu.x/slc, 3)*100,
+            uvu_share = round(uvu.y/utah, 3)*100,
+            wsu_share = round(wsu/north, 3)*100,
+            SLC_com = slcc_share + uu_share
+            )
+```
+
+
+```{r, echo=FALSE}
+knitr::kable(home_co_tbl, col.names = c("Year", "SLCC", "UU", "UVU", "WSU", "SLC combinded"), caption = "Home county % Share of 15-34 year old population.")
+```
+
+```{r,echo=FALSE}
+home_co_plot
+```
 
