@@ -1,0 +1,209 @@
+---
+title: "Market Share Report cabinet mt"
+author: "Jason Whittle"
+date: "6/26/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(warning =  F)
+knitr::opts_chunk$set(message = F)
+```
+
+
+
+```{r, echo=FALSE, include=FALSE}
+library(tidyverse); theme_set(theme_minimal())
+library(readxl)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+data <- read_xlsx("ushe_zips.xlsx")
+data <-data[ , !names(data) %in% c("s_extract")]
+names(data) <- c("inst", "year", "term",  "zip_code", "count")
+
+data$count <- as.numeric(data$count)
+
+region <- read_csv("region.csv")
+colnames(region) <- c("region", "zip")
+region$zip <- as.character(region$zip)
+```
+
+
+```{r, include=FALSE, message=FALSE}
+data %>% 
+  group_by(inst, year) %>%
+  summarise(total_count = sum(count)) %>%
+  ggplot() + 
+  geom_line(aes(x = as.numeric(year), y = total_count)) + 
+  facet_wrap(~inst) + 
+  ylab("total count") + 
+  xlab("year") + 
+  ggtitle("Annual enrollment by Institution")
+
+data %>% group_by(inst, year, term) %>%
+  summarise(total = sum(count))
+# term 1 refers to summer, 2 refers to fall and 3 spring(next year?)
+```
+
+```{r, include=FALSE,  message=FALSE}
+county_data <- read_csv("county.csv") %>%
+  gather("county", "pop", 2:5)
+
+colnames(county_data) <- c("year", "county", "pop")
+```
+
+```{r, cache = T}
+## Seperate data import. USHE data at student level rather than at zip level
+## This allows for filtering out Graduate students and CE students. 
+data_2002 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2002")
+data_2003 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2003")
+data_2004 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2004")
+data_2005 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2005")
+data_2006 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2006")
+data_2007 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2007")
+data_2008 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2008")
+data_2009 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2009")
+data_2010 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2010")
+data_2011 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2011")
+data_2012 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2012")
+data_2013 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2013")
+data_2014 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2014")
+data_2015 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2015")
+data_2016 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2016")
+data_2017 <- read_xlsx("Enrollments-by-zip-final-20180621.xlsx", sheet = "2017")
+
+data_20180622 <- bind_rows(data_2002, data_2003, data_2004, data_2005, data_2006, data_2007, data_2008,
+                           data_2009, data_2010, data_2011, data_2012, data_2013, data_2014, data_2015, 
+                           data_2016, data_2017)
+
+# filtering out non-credit students, non-matriculated students, high school students, CE students and Grad students
+# FALL term only
+data_20180622 <- data_20180622 %>%
+  filter(s_reg_status != "HS" & s_reg_status != "NG" &
+           s_reg_status != "TG" & s_reg_status != "RG" &
+           s_reg_status != "CG" & s_reg_status != "NM" & 
+           s_reg_status != "CE" & s_reg_status != "NC") %>%
+  filter(s_term == 2)
+
+# dropping useless columns. 
+data_20180622 <- data_20180622[, -which(names(data_20180622) %in% c("s_extract", "s_ethnic_h", "s_ethnic_a", 
+                                                                 "s_ethnic_b", "s_ethnic_i", "s_ethnic_p", 
+                                                                 "s_ethnic_w", "s_ethnic_n", "s_ethnic_u",
+                                                                 "s_term"))]
+```
+# Tables
+
+```{r}
+library(scales)
+data_20180622 %>% 
+  group_by(s_year, s_iname) %>% tally() %>%
+  group_by(s_year) %>%
+  summarise(ushe_sum = sum(n[s_iname != "SLCC"]),
+            SLCC_sum = sum(n[s_iname == "SLCC"]),
+            slcc_por = round(SLCC_sum/sum(n), 4)*100) %>%
+  knitr::kable(caption = "Total Fall Enrollments and % of USHE enrollments by SLCC", col.names = c("Year", "USHE", "SLCC", "SLCC %"))
+```
+
+```{r, eval=F}
+# all USHE
+data_20180622 %>% 
+  group_by(s_year, s_iname) %>% tally() %>%
+  group_by(s_year) %>%
+  summarise(slcc_propor = round(100*(sum(n[s_iname == "SLCC"])/sum(n)), 2)) %>%
+  knitr::kable(caption = "Propotion of SLCC Fall enrollments compared to total Fall USHE enrollments.", col.names = c("Year", "SLCC %"))
+```
+
+```{r}
+data_20180622 %>% semi_join(region, by = "zip") %>%
+  group_by(s_year, s_iname) %>% tally() %>%
+  group_by(s_year) %>%
+  summarise(slcc_propor = round(100*(sum(n[s_iname == "SLCC"])/sum(n)), 2)) %>%
+  knitr::kable(caption = "SLCC's proportion of Salt Lake County USHE enrollments.", col.names = c("Year", "SLCC %"))
+```
+
+```{r}
+county_tots <- county_data %>% spread("county", "pop")
+county_zips <- read_csv("utah_zips.csv", col_types = list(col_character(), col_character(), col_character()))
+colnames(county_zips) <- c("zip", "city", "county")
+county_zips <- county_zips %>% group_by(zip, county) %>% tally() %>% select(zip, county) %>% filter(is.na(county) != TRUE)
+
+zips_slc <- county_zips %>% filter(county == "Salt Lake County")
+
+sl_tots <- data_20180622 %>% 
+  semi_join(zips_slc, by = "zip") %>% 
+  filter(s_iname == "SLCC") %>%
+  group_by(s_year) %>% tally()
+
+county_tots$s_year <- as.character(county_tots$year)
+slc_share_tbl <- sl_tots %>% left_join(county_tots, by = "s_year")
+
+slc_share_tbl %>% group_by(s_year) %>%
+  mutate(slcc_co_pro = round(n/slc, 4)*100) %>% 
+  select(s_year, n, slc, slcc_co_pro) %>%
+  knitr::kable(caption = "Proportion of Salt Lake County ages 15-34 population enrolled at SLCC in Fall semester. Enrollments from SL Co. only for SLCC",
+               col.names = c("Year", "Enrollments", "SL Co. 15-34", "SLCC %"))
+```
+
+# Figures
+
+```{r}
+data_20180622 %>% 
+  group_by(s_year, s_iname) %>% tally() %>%
+  group_by(s_year) %>%
+  summarise(ushe_sum = sum(n[s_iname != "SLCC"]),
+            SLCC_sum = sum(n[s_iname == "SLCC"])) %>%
+  gather("s_iname", "n", 2:3) %>% 
+  ggplot() + 
+  geom_line(aes(x = as.numeric(s_year), y = n, col = s_iname)) + 
+  scale_color_manual(values = c("#00abe1", "#ffcd00"), 
+                     name = "", 
+                     labels = c("SLCC", "other USHE")) + 
+  labs(title = "SLCC compared to all other USHE", 
+       x = "Year", 
+       y = "Annual Headcount", 
+       caption = "Figure 1: Raw headcounts for SLCC and all other USHE. Source: USHE") +
+  scale_y_continuous(labels = comma, limits = c(0, 115000)) 
+```
+
+```{r}
+# all USHE
+data_20180622 %>% 
+  group_by(s_year, s_iname) %>% tally() %>%
+  group_by(s_year) %>%
+  summarise(slcc_propor = round(100*(sum(n[s_iname == "SLCC"])/sum(n)), 2)) %>%
+  ggplot() + 
+  geom_line(aes(x = as.numeric(s_year), y = slcc_propor), color = "#00abe1") + 
+  scale_color_manual(values = "#00abe1", 
+                     name = "", 
+                     labels = "SLCC") + 
+  labs(title = "Proportion of SLCC enrollments compared to all USHE", 
+       x = "Year", 
+       y = "Annual Headcount") +
+  scale_y_continuous(labels = comma, limits = c(0, 100)) 
+```
+
+```{r}
+slco_ushe_pop <- data_20180622 %>% 
+  semi_join(region, by = "zip") %>%
+  group_by(s_year) %>% 
+  tally()
+
+slc_pop <- county_data %>% filter(county == "slc")
+slc_pop$s_year <- as.character(slc_pop$year)
+
+slco_ushe_pop %>% left_join(slc_pop, by = "s_year") %>%
+  mutate(ushe_pro = round(100*(n/pop), 2)) %>%
+  filter(s_year != "2002" & s_year != "2003") %>%
+  ggplot() + 
+  geom_line(aes(x = as.numeric(s_year), y = ushe_pro)) + 
+  scale_color_manual(values = "#00abe1", 
+                     name = "", 
+                     labels = "SLCC") + 
+  labs(title = "Proportion of USHE enrollments compared to all SLCo (ages 15-34)", 
+       x = "Year", 
+       y = "Annual Headcount",
+       caption = "Y axis is between 10-20%.") +
+  scale_y_continuous(labels = comma, limits = c(10, 20))
+```
